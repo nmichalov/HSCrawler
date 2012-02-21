@@ -1,0 +1,11 @@
+HSCrawler is a web crawler written in python whose purpose is to gather
+URLs for a search engine I'm working on.
+
+HSCrawler was designed to be polite, which means it:
+*obeys robot.txt*
+*paces it's requests*
+*identfies itself and this repository in its user-agent string*
+
+If you're a site admin and you want HSCrawler to avoid your site, just 
+send me an email at hscrawler@gmail.com which includes the URL(s) you 
+want added to HSCrawlers blacklist file.
