@@ -14,18 +14,21 @@ from time import sleep
 
 class Crawler:
 
-    def __init__(self, crawler_id, crawl_limit):
+    def __init__(self, crawler_id, start_url):
         self.crawler_id = crawler_id
-        self.crawl_limit = crawl_limit
-        self.url_list = []
+        self.start_url = start_url
+        self.out_dir =  re.sub('\/', ' SLASH ', start_url)
+        self.indomain_urls = []
+        self.external_urls = []
         self.visited = []
-        self.atypical_urls = []
-        self.referrer_hash = {}
         self.br = mechanize.Browser()
         self.br.addheaders = [('user-agent', 'https://github.com/nmichalov')]
     
-    def start(self, start_url):
-        self.crawl(start_url)
+    def start(self):
+        if not os.path.exists('Crawled/'):
+            os.mkdir('Crawled')  
+        os.mkdir(self.out_dir)
+        self.crawl(self.start_url)
     
     def crawl(self, current_url): 
         url_parts = urlparse.urlparse(current_url)
@@ -36,6 +39,12 @@ class Crawler:
                 pass
             else:
                 self.visited.append(current_url)
+                soup = BeautifulSoup(response).prettify()
+                path = re.sub('\/', ' SLASH ', url_parts.path)
+                outfile = open(self.out_dir+'/'+path, 'a')
+                for line in soup:
+                    outfile.write(line)
+                outfile.close()
                 for link in list(self.br.links()):
                     if not '@' in link.url and '?' not in link.url:
                         if link.url.startswith('http:'):
@@ -44,44 +53,27 @@ class Crawler:
                             link = link.base_url+link.url
                         else:
                             link = link.base_url+'/'+link.url
-                        if link not in self.url_list:
-                            if link not in self.visited:
-                                self.url_list.insert(0, link)
-                            if urlparse.urlparse(link).hostname != url_parts.hostname:
-                                if not self.referrer_hash.has_key(link):
-                                    self.referrer_hash[link] = [current_url,]
-                                else:
-                                    if current_url not in self.referrer_hash[link]:
-                                        self.referrer_hash[link].append(current_url)
-                    else:
-                        self.atypical_urls.append(link)
-                    sleep(1)
-        if len(self.url_list) > 0 and len(self.visited) <= self.crawl_limit:
-            next_url = self.url_list.pop()
+                        link_parts = urlparse.urlparse(link)
+                        if link_parts.hostname == url_parts.hostname:
+                            if link not in self.indomain_urls and link not in self.visited:
+                                self.indomain_urls.append(link)
+                        else:
+                            if link.hostname not in self.external_urls:
+                                self.external_urls.append(link.hostname) 
+            sleep(1)
+        if len(self.indomain_urls) > 0:
+            next_url = self.indomain_urls.pop()
             self.crawl(next_url)
         else:
-            self.report()
-    
-    def report(self):
-        if not os.path.exists('CrawlerReports/'):
-            os.mkdir('CrawlerReports/')
-        url_file = open('CrawlerReports/'+self.crawler_id+'-URLFile.txt', 'a')
-        for url in self.visited:
-            url_file.write(url+'\n')
-        url_file.close()
-        atypical_file = open('CrawlerReports/'+self.crawler_id+'-AtypicalURLs.txt', 'a')
-        for url in self.atypical_urls:
-            atypical_file.write(str(url)+'\n')
-        atypical_file.close()
-        referrer_file = open('CrawlerReports/'+self.crawler_id+'-ReferrerHash.pck', 'w')
-        cPickle.dump(self.referrer_hash, referrer_file)
-        referrer_file.close()
+            url_file = open(out_dir+'/'+LinkedDomains, 'w')
+            cPickle.dump(self.external_urls, url_file)
+            url_file.close()      
+        
+                 
                        
 
 if __name__ == '__main__':
     start_page = raw_input('Enter starting URL: ')
     ident = raw_input('Designate an ID for this crawl: ')
-    limit = int(raw_input('Enter crawl limit: '))
-    NC = Crawler(ident, limit)
-    NC.start(start_page)
-    NC.report()
+    NC = Crawler(ident, start_page)
+    NC.start()
