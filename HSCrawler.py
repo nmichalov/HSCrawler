@@ -17,6 +17,7 @@ class Crawler:
 
     def __init__(self, start_url):  
         self.start_url = start_url
+        self.cur_dir = os.getcwd()
         self.indomain_urls = []
         self.external_urls = []
         self.visited = []
@@ -24,9 +25,8 @@ class Crawler:
         self.br.addheaders = [('user-agent', 'https://github.com/nmichalov')]
     
     def start(self):
-        cur_dir = os.getcwd()
         page_dir = urlparse.urlparse(self.start_url).netloc
-        out_dir = cur_dir+'/'+page_dir
+        out_dir = self.cur_dir+'/'+page_dir
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
         self.crawl(self.start_url, out_dir)
@@ -48,24 +48,23 @@ class Crawler:
             for link in list(self.br.links()):
                 if '@' not in link.url and '?' not in link.url and '#' not in link.url:
                     if link.url.startswith('http:'):
-                        if link.url not in self.external_urls:
-                            self.external_urls.append(link.url)
+                        link = urlparse.urlparse(link.url).netloc
+                        link = 'http://'+link
+                        if link not in self.external_urls:
+                            self.external_urls.append(link)
                     else:
                         link = 'http://'+current_url_parts.netloc+link.url
                         if link not in self.visited and link not in self.indomain_urls:
                             self.indomain_urls.append(link)
             sleep(1)
-        print self.indomain_urls
-        print
-        print self.visited
-        print
-        print '---------------'
-        print
         if len(self.indomain_urls) > 0:
             next_url = self.indomain_urls.pop()
             self.crawl(next_url, out_dir)
         else:
-            url_file = open(out_dir+'/ExternalLinkeds', 'w')
+            pickle_dir = self.cur_dir+'/LinkPickles'
+            if not os.path.exists(pickle_dir):
+                os.mkdir(pickle_dir)
+            url_file = open(pickle_dir+'/'+current_url_parts.netloc, 'w')
             cPickle.dump(self.external_urls, url_file)
             url_file.close()      
         
